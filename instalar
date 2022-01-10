@@ -1,16 +1,7 @@
 #!/bin/bash
 clear
 clear
-rm $(pwd)/$0 &> /dev/null
-#--- 20/01/2021
-
-#------- COLORES Y BARRA 
-if [ `whoami` != 'root' ] 
-   then 
-     echo -e "Debes ser root para ejecutar el Instalador" 
-     exit 
-fi
-
+### COLORES Y BARRA 
 msg () {
 BRAN='\033[1;37m' && VERMELHO='\e[31m' && VERDE='\e[32m' && AMARELO='\e[33m'
 AZUL='\e[34m' && MAGENTA='\e[35m' && MAG='\033[1;36m' &&NEGRITO='\e[1m' && SEMCOR='\e[0m'
@@ -25,109 +16,223 @@ AZUL='\e[34m' && MAGENTA='\e[35m' && MAG='\033[1;36m' &&NEGRITO='\e[1m' && SEMCO
  esac
 }
 
-#------- BARRA DE ESPERA
+## Script name
+SCRIPT_NAME=vpsmxup
 
-fun_bar () {
-comando="$1"
- _=$(
-$comando > /dev/null 2>&1
-) & > /dev/null
-pid=$!
-while [[ -d /proc/$pid ]]; do
-echo -ne "  \033[1;33m["
-   for((i=0; i<40; i++)); do
-   echo -ne "\033[1;31m>"
-   sleep 0.1
-   done
-echo -ne "\033[1;33m]"
-sleep 1s
-echo
-tput cuu1 && tput dl1
-done
-echo -ne "  \033[1;33m[\033[1;31m>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\033[1;33m] - \033[1;32m OK \033[0m\n"
-sleep 1s
-}
-
-updater () {
- 
- if [ ! -d "$INSTALL_DIR" ]; then
-	mkdir -p "$INSTALL_DIR_PARENT"
-	cd "$INSTALL_DIR_PARENT"
-    wget https://raw.githubusercontent.com/AAAAAEXQOSyIpN2JZ0ehUQ/VPS-MX-FREE/main/VPS-MX-v8.4/Install/zzupdate-master/zzupdate.default-si.conf -O /usr/local/vpsmxup/vpsmxup.default.conf  &> /dev/null
-else
-	echo ""
-fi
- 
- }
-####------- REINICIAR UPDATER Y RECONFIGURAR HORARIO
-
+## Title and graphics
 msg -bar2
 echo -e " \e[97m\033[1;41m   =====>>►► 🐲 SCRIPT - VPS•MX ®️ 🐲 ◄◄<<=====     \033[1;37m"
 msg -bar2
-msg -ama "               PREPARANDO INSTALACION"
+msg -ama "              PREPARANDO ACTUALIZACIONES"
 msg -bar2
-## Script name
-SCRIPT_NAME=vpsmxup
-## Install directory
-WORKING_DIR_ORIGINAL="$(pwd)"
-INSTALL_DIR_PARENT="/usr/local/vpsmxup/"
-INSTALL_DIR=${INSTALL_DIR_PARENT}${SCRIPT_NAME}/
-mkdir -p "/etc/vpsmxup/" &> /dev/null
-## ------ AUTO ACTULIZADOR
+sleep 5s
 
-if [ ! -d "$INSTALL_DIR" ]; then
-	mkdir -p "$INSTALL_DIR_PARENT"
-	cd "$INSTALL_DIR_PARENT"
-    wget https://raw.githubusercontent.com/AAAAAEXQOSyIpN2JZ0ehUQ/VPS-MX-FREE/main/VPS-MX-v8.4/Install/zzupdate-master/zzupdate.default.conf -O /usr/local/vpsmxup/vpsmxup.default.conf  &> /dev/null
-else
-	echo ""
+## Enviroment variables
+TIME_START="$(date +%s)"
+DOWEEK="$(date +'%u')"
+HOSTNAME="$(hostname)"
+
+## Absolute path to this script, e.g. /home/user/bin/foo.sh
+SCRIPT_FULLPATH=/usr/bin/sysactq
+SCRIPT_HASH=`md5sum ${SCRIPT_FULLPATH} | awk '{ print $1 }'`
+
+## Absolute path this script is in, thus /home/user/bin
+SCRIPT_DIR=$(dirname "$SCRIPT_FULLPATH")/
+
+## Config files
+CONFIGFILE_NAME=$SCRIPT_NAME.conf
+CONFIGFILE_FULLPATH_DEFAULT=/usr/local/vpsmxup/vpsmxup.default.conf
+CONFIGFILE_FULLPATH_ETC=/etc/vpsmxup/$CONFIGFILE_NAME
+CONFIGFILE_FULLPATH_DIR=${SCRIPT_DIR}$CONFIGFILE_NAME
+
+## Title printing function
+function printTitle
+{
+    echo ""
+    echo -e "\033[1;92m$1\033[1;91m"
+    printf '%0.s-' $(seq 1 ${#1})
+    echo ""
+}
+
+## root check
+if ! [ $(id -u) = 0 ]; then
+
+		echo ""
+		echo "vvvvvvvvvvvvvvvvvvvv"
+		echo "    Erro Fatal!!"
+		echo "^^^^^^^^^^^^^^^^^^^^"
+		echo "Este script debe ejecutarse como root!"
+
+		printTitle "How to fix it?"
+		echo "Ejecute el script así:"
+		echo "sudo $SCRIPT_NAME"
+
+		printTitle "The End"
+		echo $(date)
+		msg -bar2
+		exit
+fi 
+## Profile requested
+if [ ! -z "$1" ]; then
+
+	CONFIGFILE_PROFILE_NAME=${SCRIPT_NAME}.profile.${1}.conf
+	CONFIGFILE_PROFILE_FULLPATH_ETC=/etc/vpsmxup/$CONFIGFILE_PROFILE_NAME
+	CONFIGFILE_PROFILE_FULLPATH_DIR=${SCRIPT_DIR}$CONFIGFILE_PROFILE_NAME
+
+	if [ ! -f "$CONFIGFILE_PROFILE_FULLPATH_ETC" ] && [ ! -f "$CONFIGFILE_PROFILE_FULLPATH_DIR" ]; then
+
+		echo ""
+		echo "vvvvvvvvvvvvvvvvvvvv"
+		echo "Catastrophic error!!"
+		echo "^^^^^^^^^^^^^^^^^^^^"
+		echo "Profile config file(s) not found:"
+		echo "[X] $CONFIGFILE_PROFILE_FULLPATH_ETC"
+		echo "[X] $CONFIGFILE_PROFILE_FULLPATH_DIR"
+
+		printTitle "How to fix it?"
+		echo "Create a config file for this profile:"
+		echo "sudo cp $CONFIGFILE_FULLPATH_DEFAULT $CONFIGFILE_PROFILE_FULLPATH_ETC && sudo nano $CONFIGFILE_PROFILE_FULLPATH_ETC && sudo chmod ugo=rw /etc/vpsmxup/*.conf"
+
+		printTitle "The End"
+		echo $(date)
+		msg -bar2
+		exit
+	fi
 fi
-##PAKETES
-echo ""
-echo -e "\033[97m    ◽️ INTENTANDO DETENER UPDATER SECUNDARIO " 
-fun_bar " killall apt apt-get > /dev/null 2>&1 "
-echo -e "\033[97m    ◽️ INTENTANDO RECONFIGURAR UPDATER "
-fun_bar " dpkg --configure -a > /dev/null 2>&1 "
-echo -e "\033[97m    ◽️ INSTALANDO S-P-C "
-fun_bar " apt-get install software-properties-common -y > /dev/null 2>&1"
-echo -e "\033[97m    ◽️ INSTALANDO LIBRERIA UNIVERSAL "
-fun_bar " sudo apt-add-repository universe -y > /dev/null 2>&1"
-echo -e "\033[97m    ◽️ INSTALANDO PYTHON "
-fun_bar " sudo apt-get install python -y > /dev/null 2>&1"
-apt-get install python -y &>/dev/null
-echo -e "\033[97m    ◽️ INSTALANDO NET-TOOLS "
-fun_bar "apt-get install net-tools -y > /dev/null 2>&1"
-apt-get install net-tools -y &>/dev/null
-apt-get install curl -y > /dev/null 2>&1
-service ssh restart > /dev/null 2>&1
-echo -e "\033[97m    ◽️ DESACTIVANDO PASS ALFANUMERICO "
-sed -i 's/.*pam_cracklib.so.*/password sufficient pam_unix.so sha512 shadow nullok try_first_pass #use_authtok/' /etc/pam.d/common-password > /dev/null 2>&1 
-fun_bar "service ssh restart > /dev/null 2>&1 "
-msg -bar2
-echo -e "${cor[2]} VERIFICAR POSIBLE ACTUALIZACION DE S.O (Default n)"
-echo -e "\033[1;34m     (Este proceso puede demorar mucho Tiempo)"
-msg -bar2
-read -p "   [ s | n ]: " updater   
-[[ "$updater" = "s" || "$updater" = "S" ]] && updater
-msg -bar2
-echo -e "\033[93m              AGREGAR/EDITAR PASS ROOT\033[97m" 
-msg -bar
-echo -e "\033[1;96m DIGITE NUEVA CONTRASEÑA:\033[0;37m"; read -p " " pass
-(echo $pass; echo $pass)|passwd root 2>/dev/null
-sleep 1s
-msg -bar
-echo -e "\033[97m      CONTRASEÑA AGREGADA O EDITADA CORECTAMENTE"
-echo -e "\033[97m SU CONTRASEÑA AHORA ES: \e[41m $pass \033[0;37m"
 
-## VERIFICAR KEY AUTENTICA VS IP BOT
+for CONFIGFILE_FULLPATH in "$CONFIGFILE_FULLPATH_DEFAULT" "$CONFIGFILE_MYSQL_FULLPATH_ETC" "$CONFIGFILE_FULLPATH_ETC" "$CONFIGFILE_FULLPATH_DIR" "$CONFIGFILE_PROFILE_FULLPATH_ETC" "$CONFIGFILE_PROFILE_FULLPATH_DIR"
+do
+	if [ -f "$CONFIGFILE_FULLPATH" ]; then
+		source "$CONFIGFILE_FULLPATH"
+	fi
+done
+	
+printTitle "Actualización automática"
+INSTALL_DIR_PARENT="/usr/local/vpsmxup/"
+
+
+SCRIPT_HASH_AFTER_UPDATE=`md5sum ${SCRIPT_FULLPATH} | awk '{ print $1 }'`
+if [ "$SCRIPT_HASH" != "$SCRIPT_HASH_AFTER_UPDATE" ]; then
+		echo ""
+		echo "vvvvvvvvvvvvvvvvvvvvvv"
+		echo "Self-update installed!"
+		echo "^^^^^^^^^^^^^^^^^^^^^^"
+		echo "zzupdate itself has been updated!"
+		echo "Please run zzupdate again to update your system."
+
+		printTitle "The End"
+		echo $(date)
+		msg -bar2
+		exit
+fi
+
+
+if [ "$SWITCH_PROMPT_TO_NORMAL" = "1" ]; then
+
+	printTitle "Switching to the 'normal' release channel (if 'never' or 'lts')"
+	sed -i -E 's/Prompt=(never|lts)/Prompt=normal/g' "/etc/update-manager/release-upgrades"
+	
+else
+
+	printTitle "La conmutación de canales está deshabilitada"
+	
+fi
+
+
+printTitle "Limpieza de caché local"
+apt-get clean
+
+printTitle "Actualizar información de paquetes disponibles"
+apt-get update
+
+printTitle "PAQUETES DE ACTUALIZACIÓN"
+apt-get dist-upgrade -y
+
+if [ "$VERSION_UPGRADE" = "1" ] && [ "$VERSION_UPGRADE_SILENT" = "1" ]; then
+
+	printTitle "Actualice silenciosamente a una nueva versión, si la hay"
+	do-release-upgrade -f DistUpgradeViewNonInteractive
+	
+elif [ "$VERSION_UPGRADE" = "1" ] && [ "$VERSION_UPGRADE_SILENT" = "0" ]; then
+
+	printTitle "Actualice interactivamente a una nueva versión, si la hay"
+	do-release-upgrade
+	
+else
+
+	printTitle "Nueva versión omitida (deshabilitada en la configuración)"
+	
+fi
+
+
+if [ "$COMPOSER_UPGRADE" = "1" ]; then
+
+	printTitle "Compositor de actualización automática"
+	
+	if ! [ -x "$(command -v composer)" ]; then
+		echo "Composer no está instalado"
+	else
+		composer self-update
+	fi
+fi
+
+if [ "$SYMFONY_UPGRADE" = "1" ]; then
+
+	printTitle "Symfony con actualización automática"
+	
+	if ! [ -x "$(command -v symfony)" ]; then
+		echo "Symfony is not installed"
+	else
+		symfony self:update --yes
+	fi
+fi
+
+printTitle "Limpieza de paquetes (eliminación automática de paquetes no utilizados)"
+apt-get autoremove -y
+
+printTitle "Versión actual"
+lsb_release -d
+
+printTitle "Tiempo que tomó Actulizacion de Repositorios de UBUNTU"
+echo "$((($(date +%s)-$TIME_START)/60)) min."
+
 cd
-wget https://raw.githubusercontent.com/AAAAAEXQOSyIpN2JZ0ehUQ/VPS-MX-FREE/main/VPS-MX-v8.4/Install/sysactq -O /usr/bin/sysactq &> /dev/null
-chmod +x /usr/bin/sysactq
+## INSTALL_DIR_PARENT
+/bin/cp /etc/skel/.bashrc ~/
+echo 'clear' >> .bashrc
+echo 'echo ""' >> .bashrc
+echo 'echo -e "\t\033[91m __     ______  ____        __  ____  __ " '>> .bashrc
+echo 'echo -e "\t\033[91m \ \   / /  _ \/ ___|      |  \/  \ \/ / " '>> .bashrc
+echo 'echo -e "\t\033[91m  \ \ / /| |_) \___ \ _____| |\/| |\  /  " '>> .bashrc
+echo 'echo -e "\t\033[91m   \ V / |  __/ ___) |_____| |  | |/  \  " '>> .bashrc
+echo 'echo -e "\t\033[91m    \_/  |_|   |____/      |_|  |_/_/\_\ " '>> .bashrc
+echo 'echo "" '>> .bashrc
+echo 'echo -e "\033[92m\t        INICIANDO INSTALADOR FINAL"'>> .bashrc
+echo 'echo "" '>> .bashrc                                               
+echo 'sleep 5s'>> .bashrc
+echo 'wget https://raw.githubusercontent.com/AAAAAEXQOSyIpN2JZ0ehUQ/VPS-MX-FREE/main/VPS-MX-v8.4/Install/VPS-MX.sh -O /usr/bin/VPS-MX &>/dev/null'>> .bashrc
+echo 'chmod +x /usr/bin/VPS-MX'>> .bashrc
+echo 'VPS-MX'>> .bashrc
+
 msg -bar2
+echo -e "\033[93m        -- ACTULIZACION DE UBUNTU COMPLETA -- "
 msg -bar2
-read -t 20 -n 1 -rsp $'\033[1;39m           Preciona Enter Para continuar\n'
-## Restore working directory
-cd $WORKING_DIR_ORIGINAL
-clear
-sysactq
-exit
+
+if [ "$REBOOT" = "1" ]; then
+	echo -e "\033[92m       ❗️ SU VPS SE REINICIARA EN 5 SEGUNDOS ❗️            "
+	msg -bar2
+	while [ $REBOOT_TIMEOUT -gt 0 ]; do
+	   echo -ne "                         -$REBOOT_TIMEOUT-\033[0K\r"
+	   sleep 1
+	   : $((REBOOT_TIMEOUT--))
+	done
+	reboot
+fi
+rm -rf   &> /dev/null
+rm -rf /usr/bin/systembin &> /dev/null
+printTitle "Volviendo a $INITIAL_DIR"
+cd "$INITIAL_DIR"
+pwd
+printTitle "Encaso de no reiniciar auto ejecute: 'sudo reboot'"
+echo $(date)
+echo "$FRAME"
