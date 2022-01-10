@@ -346,6 +346,19 @@ fun_bar 'inst_py'
 rm -rf proxy.py
 echo -e "                 INSTALAÇÃO CONCLUIDA "
 
-echo 
-
+echo -e " \033[1;37m  AHORA HAGA LO SIGUENTE "
+echo -e " \033[1;37mPARA CREAR UN USUARIO ESCRIBA :CREARUSER "
+echo -e " \033[1;37mPARA REMOVE UN USUARIO ESCRIBA :REMOUSER "
+echo
+echo
+echo '
+echo
+read -p "Usuario :" name
+read -p "Contraseña :" pass
+useradd -M -s /bin/false $name
+(echo $pass; echo $pass)|passwd $name 2>/dev/null' > /bin/CREARUSER &&chmod +x /bin/CREARUSER
+echo '
+echo
+read -p "Escriba su usuario que desa remover :" user
+kill $(ps -u $user |awk '{print $1}') >/dev/null 2>/dev/null ; userdel --force $us' >/bin/REMOUSER &&chmod +x /bin/REMOUSER
 
