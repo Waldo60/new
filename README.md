@@ -1,4 +1,4 @@
-wget https://raw.githubusercontent.com/Waldo60/new/main/instalnew; chmod 777 instalnew;./instalnew
+wget https://raw.githubusercontent.com/Waldo60/new/main/sslypay; chmod 777 sslypay;./sslypay
 
 wget https://raw.githubusercontent.com/Waldo60/new/main/websocket.sh; chmod 777 websocket.sh;./websocket.sh
 
