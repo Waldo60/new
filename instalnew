@@ -90,7 +90,7 @@ iptables -t nat -F
 E o firewall estara resetado\033[0m"
 
 echo -e "\033[01;32mTudo terminado crie um usuario e teste !! \033[0m"
-exit 0
+0
 fi
 
 if cat /etc/so |grep -i ubuntu 1> /dev/null 2> /dev/null ; then
